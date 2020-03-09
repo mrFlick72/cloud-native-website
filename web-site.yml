@@ -1,0 +1,221 @@
+---
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: web-site
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: web-site
+  name: web-site
+data:
+  httpd.conf: |-
+    ServerRoot "/usr/local/apache2"
+
+    Listen 80
+
+    LoadModule mpm_event_module modules/mod_mpm_event.so
+    LoadModule authn_file_module modules/mod_authn_file.so
+    LoadModule authn_core_module modules/mod_authn_core.so
+    LoadModule authz_host_module modules/mod_authz_host.so
+    LoadModule authz_groupfile_module modules/mod_authz_groupfile.so
+    LoadModule authz_user_module modules/mod_authz_user.so
+    LoadModule authz_core_module modules/mod_authz_core.so
+    LoadModule access_compat_module modules/mod_access_compat.so
+    LoadModule auth_basic_module modules/mod_auth_basic.so
+    LoadModule reqtimeout_module modules/mod_reqtimeout.so
+    LoadModule filter_module modules/mod_filter.so
+    LoadModule mime_module modules/mod_mime.so
+    LoadModule log_config_module modules/mod_log_config.so
+    LoadModule env_module modules/mod_env.so
+    LoadModule headers_module modules/mod_headers.so
+    LoadModule setenvif_module modules/mod_setenvif.so
+    LoadModule version_module modules/mod_version.so
+    LoadModule unixd_module modules/mod_unixd.so
+    LoadModule status_module modules/mod_status.so
+    LoadModule autoindex_module modules/mod_autoindex.so
+
+    <IfModule !mpm_prefork_module>
+    </IfModule>
+    <IfModule mpm_prefork_module>
+    </IfModule>
+
+    LoadModule dir_module modules/mod_dir.so
+    LoadModule alias_module modules/mod_alias.so
+
+    <IfModule unixd_module>
+
+    User daemon
+    Group daemon
+
+    </IfModule>
+
+    ServerAdmin you@example.com
+
+    #ServerName www.example.com:80
+
+    <Directory />
+    AllowOverride none
+    Require all denied
+    </Directory>
+
+    DocumentRoot "/usr/local/apache2/htdocs"
+    <Directory "/usr/local/apache2/htdocs">
+
+    Options Indexes FollowSymLinks
+
+    AllowOverride None
+
+    Require all granted
+    </Directory>
+
+    <IfModule dir_module>
+    DirectoryIndex index.html
+    </IfModule>
+
+    <Files ".ht*">
+    Require all denied
+    </Files>
+
+    ErrorLog logs/error_log
+
+    LogLevel warn
+
+    <IfModule log_config_module>
+    LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
+    LogFormat "%h %l %u %t \"%r\" %>s %b" common
+
+    <IfModule logio_module>
+    LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\" %I %O" combinedio
+    </IfModule>
+
+    #CustomLog /proc/self/fd/1 common
+
+    CustomLog "logs/access_log" combined
+    </IfModule>
+
+    <IfModule alias_module>
+
+    ScriptAlias /cgi-bin/ "/usr/local/apache2/cgi-bin/"
+
+    </IfModule>
+
+    <IfModule cgid_module>
+    </IfModule>
+
+
+    <Directory "/usr/local/apache2/cgi-bin">
+    AllowOverride None
+    Options None
+    Require all granted
+    </Directory>
+
+    <IfModule headers_module>
+    RequestHeader unset Proxy early
+    </IfModule>
+
+    <IfModule mime_module>
+    TypesConfig conf/mime.types
+
+    AddType application/x-compress .Z
+    AddType application/x-gzip .gz .tgz
+
+    </IfModule>
+
+
+    <IfModule proxy_html_module>
+    Include conf/extra/proxy-html.conf
+    </IfModule>
+
+    <IfModule ssl_module>
+    SSLRandomSeed startup builtin
+    SSLRandomSeed connect builtin
+    </IfModule>
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: web-site
+  name: web-site
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: web-site
+  template:
+    metadata:
+      labels:
+        app: web-site
+    spec:
+      volumes:
+        - name: httpd-site
+          emptyDir: {}
+
+        - name: httpd-conf
+          configMap:
+            name: web-site
+      containers:
+        - name: apache
+          image: httpd
+          volumeMounts:
+            - name: httpd-site
+              mountPath: /usr/local/apache2/htdocs/
+
+            - name: httpd-conf
+              subPath: httpd.conf
+              mountPath: /usr/local/apache2/conf/httpd.conf
+          ports:
+            - containerPort: 80
+        - name: storage-provider
+          volumeMounts:
+            - mountPath: /usr/local/apache2/htdocs/
+              name: httpd-site
+          image: jkarlos/git-server-docker
+          args:
+            - /bin/sh
+            - -c
+            - >
+              cd /usr/local/apache2/htdocs;
+              git clone https://github.com/mrFlick72/mrFlick72.github.io.git;
+              cd mrFlick72.github.io;
+              mv * ../;
+              while true; do sleep 3600; done;
+
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: web-site
+  name: web-site
+spec:
+  selector:
+    app: web-site
+  ports:
+    - name: httpd
+      protocol: TCP
+      port: 80
+
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  namespace: web-site
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+  name: web-site
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            backend:
+              serviceName: web-site
+              servicePort: 80
