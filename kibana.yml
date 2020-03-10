@@ -1,0 +1,83 @@
+---
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kibana
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kibana
+  namespace: kibana
+data:
+  kibana.yml: |-
+    elasticsearch.hosts: [ "http://elasticsearch.elasticsearch:9200" ]
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kibana
+  namespace: kibana
+spec:
+  selector:
+    matchLabels:
+      app: kibana
+  template:
+    metadata:
+      labels:
+        app: kibana
+    spec:
+      containers:
+        - name: kibana
+          image: docker.elastic.co/kibana/kibana:7.6.1
+
+          volumeMounts:
+            - mountPath: /usr/share/kibana/config/kibana.yml
+              subPath: kibana.yml
+              name: kibana-conifg
+      volumes:
+       - name: kibana-conifg
+         configMap:
+           name: kibana
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: kibana
+  namespace: kibana
+spec:
+  selector:
+    app: kibana
+  ports:
+    - name: kibana-tcp
+      port: 5601
+      protocol: TCP
+
+    - name: kibana-udp
+      port: 5601
+      protocol: UDP
+
+---
+
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: kibana
+  namespace: kibana
+#  annotations:
+#    nginx.ingress.kubernetes.io/rewrite-target: /$1
+
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            backend:
+              serviceName: kibana
+              servicePort: 5601

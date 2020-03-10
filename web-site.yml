@@ -81,7 +81,7 @@ data:
     Require all denied
     </Files>
 
-    ErrorLog logs/error_log
+    ErrorLog logs/error_log.log
 
     LogLevel warn
 
@@ -95,7 +95,7 @@ data:
 
     #CustomLog /proc/self/fd/1 common
 
-    CustomLog "logs/access_log" combined
+    CustomLog "logs/access_log.log" combined
     </IfModule>
 
     <IfModule alias_module>
@@ -157,6 +157,9 @@ spec:
         - name: httpd-site
           emptyDir: {}
 
+        - name: apache-logs
+          emptyDir: {}
+
         - name: httpd-conf
           configMap:
             name: web-site
@@ -167,11 +170,13 @@ spec:
             - name: httpd-site
               mountPath: /usr/local/apache2/htdocs/
 
+            - name: apache-logs
+              mountPath: /usr/local/apache2/logs/
+
             - name: httpd-conf
               subPath: httpd.conf
               mountPath: /usr/local/apache2/conf/httpd.conf
-          ports:
-            - containerPort: 80
+
         - name: storage-provider
           volumeMounts:
             - mountPath: /usr/local/apache2/htdocs/
@@ -187,6 +192,15 @@ spec:
               mv * ../;
               while true; do sleep 3600; done;
 
+
+        - name: filebeats
+          image: docker.elastic.co/beats/filebeat:7.6.1
+          volumeMounts:
+            - name: apache-logs
+              mountPath: /usr/local/apache2/logs/
+          env:
+            - name: output.elasticsearch.hosts
+              value: "['elasticsearch:9200']"
 
 ---
 
