@@ -7,7 +7,8 @@ metadata:
 data:
   kibana.yml: |-
     server.port: 8080
-    elasticsearch.hosts: [ "http://elastic-stack.elasticsearch:9200" ]
+    server.name: kibana.elastic-stack.svc.cluster.local
+    elasticsearch.hosts: [ "http://elasticsearch.elastic-stack.svc.cluster.local:9200" ]
 
 ---
 
