@@ -13,8 +13,6 @@ spec:
     metadata:
       labels:
         app: kibana
-      annotations:
-        seccomp.security.alpha.kubernetes.io/pod: 'docker/default'
     spec:
       containers:
         - name: kibana
@@ -29,10 +27,7 @@ spec:
 
             - name: SERVER_BASEPATH
               value: /kibana
-      volumes:
-       - name: kibana-conifg
-         configMap:
-           name: kibana
+
 
 ---
 

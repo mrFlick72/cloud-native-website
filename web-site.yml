@@ -17,22 +17,23 @@ data:
     filebeat.config:
       modules:
         path: ${path.config}/modules.d/*.yml
-        reload.enabled: false
-      inputs:
-        - type: log
-          enabled: true
-          paths:
-            - /usr/local/apache2/logs/*.log
+        reload.enabled: true
+
+    filebeat.inputs:
+      - type: log
+        enabled: true
+        paths:
+          - /usr/local/apache2/logs/*.log
 
     processors:
       - add_cloud_metadata: ~
       - add_docker_metadata: ~
 
     setup.kibana:
-      host: "kibana.elastic-stack.svc.cluster.local"
+      host: "kibana.elastic-stack.svc.cluster.local:5601"
 
     output.elasticsearch:
-      hosts: ['elasticsearch.elastic-stack.svc.cluster.local']
+      hosts: ['elasticsearch.elastic-stack.svc.cluster.local:9200']
       username:
       password:
 
